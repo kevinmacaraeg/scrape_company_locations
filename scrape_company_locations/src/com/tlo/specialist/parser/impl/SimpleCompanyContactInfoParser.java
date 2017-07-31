@@ -1,11 +1,11 @@
-package com.tlo.specialist.util.impl;
+package com.tlo.specialist.parser.impl;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 import com.tlo.specialist.domain.CompanyContactInformation;
-import com.tlo.specialist.util.CompanyContactInfoParser;
+import com.tlo.specialist.parser.CompanyContactInfoParser;
 import com.tlo.specialist.util.Constants;
 import com.tlo.specialist.util.StringHelper;
 
@@ -23,9 +23,7 @@ public class SimpleCompanyContactInfoParser implements CompanyContactInfoParser 
 			String phoneNumberLabel = Constants.EMPTY_STRING;
 			String faxNumberLabel = Constants.EMPTY_STRING;
 			String emailLabel = Constants.EMPTY_STRING;
-
-			fullCompanyContactInformation = StringHelper.replaceEachNonBreakingSpaceWithSpace(fullCompanyContactInformation).trim();
-			fullCompanyContactInformation = fullCompanyContactInformation.replaceAll(Constants.REGEX_WHITESPACES, Constants.SPACE);
+			
 			fullCompanyContactInformation = removeNoiseWords(fullCompanyContactInformation);
 			fullCompanyContactInformation = fullCompanyContactInformation.replace(" T ", " T: ").replace(" F ", " F: ");
 			fullCompanyContactInformation = fullCompanyContactInformation.replace(" t ", " t: ").replace(" p ", " p: ").replace(" f ", " f: ");
@@ -187,6 +185,7 @@ public class SimpleCompanyContactInfoParser implements CompanyContactInfoParser 
 				companyContactInfo.setPhoneNumber(StringHelper.replaceNullValue(phoneNumber, Constants.EMPTY_STRING).trim());
 				companyContactInfo.setFaxNumber(StringHelper.replaceNullValue(faxNumber, Constants.EMPTY_STRING).trim());
 				companyContactInfo.setEmail(StringHelper.replaceNullValue(email, Constants.EMPTY_STRING).trim());
+				
 			}
 			
 		} catch (Exception e) {
@@ -207,7 +206,9 @@ public class SimpleCompanyContactInfoParser implements CompanyContactInfoParser 
 				
 				CompanyContactInformation contactInfo = parseCompanyContactInformation(masterCompanyId, masterCompanyName, websiteLocationsLink, fullCompanyContactInfo);
 				
-				companyContactInfoList.add(contactInfo);
+				if (contactInfo != null) {
+					companyContactInfoList.add(contactInfo);
+				}
 			}
 			
 		} catch (Exception e) {
@@ -218,6 +219,10 @@ public class SimpleCompanyContactInfoParser implements CompanyContactInfoParser 
 	}
 	
 	public String removeNoiseWords(String fullCompanyContactInfo) {
+		fullCompanyContactInfo = StringHelper.replaceEachNonBreakingSpaceWithSpace(fullCompanyContactInfo).trim();
+		fullCompanyContactInfo = fullCompanyContactInfo.replaceAll(Constants.REGEX_INVISIBLE_CONTROL_CHAR, Constants.EMPTY_STRING);
+		fullCompanyContactInfo = fullCompanyContactInfo.replaceAll(Constants.REGEX_WHITESPACES, Constants.SPACE);
+		fullCompanyContactInfo = fullCompanyContactInfo.replaceAll(Constants.REGEX_TWO_OR_MORE_SPACES, Constants.SPACE);
 		String[] wordsFromFullCompanyContactInfo = fullCompanyContactInfo.split(Constants.SPACE);
 		StringBuilder newFullCompanyContactInfo = new StringBuilder();
 		for (String word : wordsFromFullCompanyContactInfo) {
@@ -233,7 +238,8 @@ public class SimpleCompanyContactInfoParser implements CompanyContactInfoParser 
 													.replaceAll("Go to.*.site\\.?", Constants.EMPTY_STRING)
 													.replaceAll("More about our.*.presence >?>?", Constants.EMPTY_STRING)
 													.replaceAll("Find out more about \\w+ \\w+ \\w+, \\w+ \\w+|Find out more about \\w+ \\w+ \\w+, \\w+|Find out more about \\w+ \\w+ \\w+", Constants.EMPTY_STRING)
-													.replaceAll("\\d+ miles away", Constants.EMPTY_STRING);
+													.replaceAll("\\d+ miles away", Constants.EMPTY_STRING)
+													.replaceAll("Please select to get details*.", Constants.EMPTY_STRING);
 		return fullCompanyContactInfo.trim();
 	}
 	

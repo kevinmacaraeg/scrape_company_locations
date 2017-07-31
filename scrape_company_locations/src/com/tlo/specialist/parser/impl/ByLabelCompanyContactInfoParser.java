@@ -1,15 +1,15 @@
-package com.tlo.specialist.util.impl;
+package com.tlo.specialist.parser.impl;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 import com.tlo.specialist.domain.CompanyContactInformation;
-import com.tlo.specialist.util.CompanyContactInfoParser;
+import com.tlo.specialist.parser.CompanyContactInfoParser;
 import com.tlo.specialist.util.Constants;
 import com.tlo.specialist.util.StringHelper;
 
-public class IBMCompanyContactInfoParser implements CompanyContactInfoParser {
+public class ByLabelCompanyContactInfoParser implements CompanyContactInfoParser {
 	
 	String[] fullCompanyContactInfoWords;
 	
@@ -18,37 +18,47 @@ public class IBMCompanyContactInfoParser implements CompanyContactInfoParser {
 		CompanyContactInformation companyContactInfo = null;
 		try {
 				
-			if (fullCompanyContactInformation.contains("General contact information")) {
-				String address = null;
-				String phoneNumber = null;
-				String faxNumber = null;
-				String email = null;
-				
-				fullCompanyContactInformation = removeNoiseWords(fullCompanyContactInformation);
-				fullCompanyContactInfoWords = fullCompanyContactInformation.split(Constants.SPACE);
-				for (String label : Constants.IBM_COMPANY_CONTACT_INFO_LABELS) {
-					for (int i = 0; i < fullCompanyContactInfoWords.length; i++) {
-						String currentWord = fullCompanyContactInfoWords[i];
-						if (label.equalsIgnoreCase(currentWord.trim()) || currentWord.contains(label)) {
-							if ("Tel:".equalsIgnoreCase(currentWord)) {
-								phoneNumber = getContactInformation(currentWord, i);
-							} else if ("Fax:".equalsIgnoreCase(currentWord)) {
-								faxNumber = getContactInformation(currentWord, i);
-							} else if ("E-mail:".equalsIgnoreCase(currentWord)) {
-								email = fullCompanyContactInfoWords[i + 1].trim();
-							} else if (currentWord.contains("E-mail:")) {
-								email = currentWord.split(Constants.COLON)[1].trim();
-							} else if ("Address".equalsIgnoreCase(currentWord) || "Address:".equalsIgnoreCase(currentWord)) {
-								if (StringHelper.isEmpty(address)) {
-									address = getContactInformation(currentWord, i);
-								} else {
-									address = address + Constants.WINDOWS_NEW_LINE + getContactInformation(currentWord, i);
-								}
-							}
+			String address = Constants.EMPTY_STRING;
+			String phoneNumber = Constants.EMPTY_STRING;
+			String faxNumber = Constants.EMPTY_STRING;
+			String email = Constants.EMPTY_STRING;
+			
+			fullCompanyContactInformation = removeNoiseWords(fullCompanyContactInformation);
+			fullCompanyContactInformation = fullCompanyContactInformation.replaceAll(Constants.REGEX_WHITESPACES, Constants.SPACE);
+			fullCompanyContactInformation = StringHelper.replaceEachNonBreakingSpaceWithSpace(fullCompanyContactInformation);
+			fullCompanyContactInfoWords = fullCompanyContactInformation.split(Constants.SPACE);
+			for (int i = 0; i < fullCompanyContactInfoWords.length; i++) {
+				String currentWord = fullCompanyContactInfoWords[i];
+				if ("Desk:".equals(currentWord) || "CONTACT".equals(currentWord) || "TEL".equals(currentWord) || "Tel:".equals(currentWord) || "Tel".equals(currentWord) || "Téléphone".equals(currentWord) || "Telephone:".equals(currentWord) || "Telephone".equals(currentWord) || "Telefono:".equals(currentWord) || "Telefon".equals(currentWord) || "Phone:".equals(currentWord) || "Phone".equals(currentWord)) {
+					if (StringHelper.isEmpty(phoneNumber)) {
+						phoneNumber = getContactInformation(currentWord, i).trim();
+					} else {
+						phoneNumber = phoneNumber + Constants.SEMI_COLON + getContactInformation(currentWord, i);
+					}
+				} else if ("FAX:".equals(currentWord) || "FAX".equals(currentWord) || "Fax:".equals(currentWord) || "Fax".equals(currentWord) || "Faks".equals(currentWord) || "Facsimile".equals(currentWord)) {
+					if (StringHelper.isEmpty(faxNumber)) {
+						faxNumber = getContactInformation(currentWord, i).trim();
+					} else {
+						faxNumber = faxNumber + Constants.SEMI_COLON + getContactInformation(currentWord, i);
+					}
+				} else if ("E-mail:".equals(currentWord) || "Email:".equals(currentWord) || "Email".equals(currentWord) || "E-Posta".equals(currentWord)) {
+					if (i + 1 < fullCompanyContactInfoWords.length) {
+						if (StringHelper.isEmpty(email)) {
+							email = fullCompanyContactInfoWords[i + 1].trim();
+						} else {
+							email = email + Constants.SEMI_COLON + fullCompanyContactInfoWords[i + 1].trim();
 						}
 					}
+				} else if ("Mail".equals(currentWord) || "address".equals(currentWord) || "ADDRESS".equals(currentWord) || "Address".equals(currentWord) || "Address:".equals(currentWord) || "Add:".equals(currentWord) || "Adresse".equals(currentWord) || "Adres".equals(currentWord) || "Location".equals(currentWord) || "Dirección:".equals(currentWord)) {
+					if (StringHelper.isEmpty(address)) {
+						address = getContactInformation(currentWord, i).trim();
+					} else {
+						address = address + Constants.SEMI_COLON + getContactInformation(currentWord, i);
+					}
 				}
-				
+			}
+			
+			if (StringHelper.isNotEmpty((address + phoneNumber + faxNumber + email).trim())) {
 				companyContactInfo = new CompanyContactInformation();
 				companyContactInfo.setMasterCompanyId(masterCompanyId);
 				companyContactInfo.setMasterCompanyName(masterCompanyName);
@@ -118,12 +128,12 @@ public class IBMCompanyContactInfoParser implements CompanyContactInfoParser {
 			contactInformationBuilder = new StringBuilder();
 			for (int j = currentWordIndex + 1; j < fullCompanyContactInfoWords.length; j++) {
 				String nextWord = fullCompanyContactInfoWords[j];
-				if (!StringHelper.stringArrayContainsString(Constants.IBM_COMPANY_CONTACT_INFO_LABELS, nextWord)) {
+				if (!StringHelper.stringArrayContainsString(Constants.COMPANY_CONTACT_INFO_LABELS, nextWord)) {
 					String[] splitByColon = {nextWord};
 					if (!Constants.COLON.equalsIgnoreCase(nextWord)) {
 						splitByColon = nextWord.split(Constants.COLON);
 					}
-					if (!StringHelper.stringArrayContainsString(Constants.IBM_COMPANY_CONTACT_INFO_LABELS, splitByColon[0])) {
+					if (!StringHelper.stringArrayContainsString(Constants.COMPANY_CONTACT_INFO_LABELS, splitByColon[0])) {
 						contactInformationBuilder.append(nextWord).append(Constants.SPACE);
 					} else {
 						break;

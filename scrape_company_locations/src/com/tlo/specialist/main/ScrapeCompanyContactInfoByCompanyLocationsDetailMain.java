@@ -10,7 +10,7 @@ import com.tlo.specialist.service.ScrapeCompanyContactInfoService;
 
 public class ScrapeCompanyContactInfoByCompanyLocationsDetailMain {
 	
-private static Logger logger;
+	private static Logger logger;
 	
 	private static String companyLocationsDetailsFilePath;
 	

@@ -10,7 +10,7 @@ public class FileHelper {
 		File file = null;
 		try {
 			
-			file = new File(StringHelper.addSlashAtEnd(filePath) + fileName); 
+			file = new File(StringHelper.addForwardSlashAtEnd(filePath) + fileName); 
 
 		} catch (Exception e) {
 			e.printStackTrace();

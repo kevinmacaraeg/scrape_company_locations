@@ -12,7 +12,7 @@ import com.tlo.specialist.domain.CompanyLocationsDetail;
 
 public class CompanyLocationsDetailCellValuesHandler implements SheetContentsHandler  {
 	
-private static final int FIRST_ROW_INDEX = 0;
+	private static final int FIRST_ROW_INDEX = 0;
 	
 	private static final int NUM_OF_COL = 7;
 	

@@ -11,16 +11,22 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.openqa.selenium.Alert;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
 import com.tlo.specialist.domain.CompanyContactInformation;
 import com.tlo.specialist.domain.CompanyLocationsDetail;
-import com.tlo.specialist.util.CompanyContactInfoParser;
+import com.tlo.specialist.parser.CompanyContactInfoParser;
 import com.tlo.specialist.util.CompanyContactInfoParserFactory;
 import com.tlo.specialist.util.Constants;
 import com.tlo.specialist.util.ExcelHelper;
 import com.tlo.specialist.util.FileHelper;
+import com.tlo.specialist.util.JsoupHelper;
+import com.tlo.specialist.util.StringHelper;
 
 public class ScrapeCompanyContactInfoService {
 	
@@ -39,7 +45,7 @@ public class ScrapeCompanyContactInfoService {
 				String outputFileName = getOutputFileName(masterCompanyName);
 				List<CompanyContactInformation> companyContactInformationList = null;
 				try {
-					companyContactInformationList = scrapeCompanyContactInfoByLinkAndCssSelector(masterCompanyId, masterCompanyName, companyLocationsUrl, cssSelector);
+					companyContactInformationList = scrapeCompanyContactInfoByURLAndCssSelector(masterCompanyId, masterCompanyName, companyLocationsUrl, cssSelector);
 					
 					logger.info("Writing contact information to file......");
 					File excelFile = FileHelper.constructFile(outputFilePath, outputFileName);
@@ -57,14 +63,14 @@ public class ScrapeCompanyContactInfoService {
 		}
 	}
 	
-	public List<CompanyContactInformation> scrapeCompanyContactInfoByLinkAndCssSelector(String masterCompanyId, String masterCompanyName, String link, String cssSelector) throws Exception {
+	public List<CompanyContactInformation> scrapeCompanyContactInfoByURLAndCssSelector(String masterCompanyId, String masterCompanyName, String locationURL, String cssSelector) throws Exception {
 		List<CompanyContactInformation> companyContactInformationList = null;
 		try {
 			
-			logger.info("Connecting to " + link + "......");
+			logger.info("Connecting to " + locationURL + "......");
 			WebDriver driver = new ChromeDriver();
-			driver.get(link);
-			Thread.sleep(5000);
+			driver.get(locationURL);
+			Thread.sleep(12000);
 			
 			String html_content = driver.getPageSource();
 			
@@ -76,16 +82,12 @@ public class ScrapeCompanyContactInfoService {
 			Elements contactInfoElements = websiteDocument.select(cssSelector);
 			
 			logger.info("Getting contact information......");
-			Set<String> fullContactInformationSet = new HashSet<String>();
-			for (Element element : contactInfoElements) {
-				String contactInfo = element.text();
-				fullContactInformationSet.add(contactInfo);
-			}
+			Set<String> fullContactInformationSet = JsoupHelper.getElementsTextToSet(contactInfoElements);
 			
 			logger.info("Number of retrieved contact information :: " + fullContactInformationSet.size());
 			
 			logger.info("Parsing each company contact information retrieved......");
-			companyContactInformationList = parseContactInformation(masterCompanyId, masterCompanyName, link, fullContactInformationSet);
+			companyContactInformationList = parseContactInformation(masterCompanyId, masterCompanyName, locationURL, fullContactInformationSet);
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -94,20 +96,30 @@ public class ScrapeCompanyContactInfoService {
 		return companyContactInformationList;
 	}
 	
-	public List<CompanyContactInformation> scrapeCompanyContactInfoByLinkAndCssSelector(String masterCompanyId, String masterCompanyName, List<String> websiteLocationLinksList, String cssSelector) throws Exception {
+	public List<CompanyContactInformation> scrapeCompanyContactInfoByURLAndCssSelector(String masterCompanyId, String masterCompanyName, Set<String> websiteLocationURLsSet, String cssSelector) throws Exception {
 		List<CompanyContactInformation> companyContactInformationList = null;
 		try {
 			companyContactInformationList = new ArrayList<CompanyContactInformation>();
-			for (String link : websiteLocationLinksList) {
+			for (String locationURL : websiteLocationURLsSet) {
 
-				logger.info("Connecting to " + link + "......");
+				logger.info("Connecting to " + locationURL + "......");
 				WebDriver driver = new ChromeDriver();
-				driver.get(link);
-				Thread.sleep(5000);
+				driver.get(locationURL);
+				
+				try {
+					WebDriverWait wait = new WebDriverWait(driver, 3);
+					Alert alert = wait.until(ExpectedConditions.alertIsPresent());
+		
+					alert.accept();
+				} catch (TimeoutException e) {
+					//continue if there is no alert box
+				}
+				
+				Thread.sleep(3000);
 				
 				String html_content = driver.getPageSource();
 				
-				driver.close();
+				driver.quit();
 				
 				Document websiteDocument = Jsoup.parse(html_content);
 				
@@ -117,7 +129,7 @@ public class ScrapeCompanyContactInfoService {
 				logger.info("Getting contact information......");
 				for (Element element : contactInfoElements) {
 					String contactInfo = element.text();
-					CompanyContactInformation companyContactInformation = parseContactInformation(masterCompanyId, masterCompanyName, link, contactInfo);
+					CompanyContactInformation companyContactInformation = parseContactInformation(masterCompanyId, masterCompanyName, locationURL, contactInfo);
 					if (companyContactInformation != null) {
 						companyContactInformationList.add(companyContactInformation);
 					}
@@ -131,95 +143,42 @@ public class ScrapeCompanyContactInfoService {
 		}
 		return companyContactInformationList;
 	}
-
-//	public void scrapeCompanyContactInfoToFileByLinkAndCssSelector(String outputFilePath, String outputFileName, String link, String cssSelector) throws Exception {
-//		try {
-//			
-//			logger.info("Connecting to " + link + "......");
-//			WebDriver driver = new ChromeDriver();
-//			driver.get(link);
-//			Thread.sleep(5000);
-//			
-//			String html_content = driver.getPageSource();
-//			
-//			driver.close();
-//			
-//			Document websiteDocument = Jsoup.parse(html_content);
-//			
-//			logger.info("Selecting elements with contact information......");
-//			Elements contactInfoElements = websiteDocument.select(cssSelector);
-//			
-//			logger.info("Getting contact information......");
-//			Set<String> fullContactInformationSet = new HashSet<String>();
-//			for (Element element : contactInfoElements) {
-//				String contactInfo = element.text();
-//				fullContactInformationSet.add(contactInfo);
-//			}
-//			
-//			logger.info("Number of retrieved contact information :: " + fullContactInformationSet.size());
-//			
-//			logger.info("Parsing each company contact information retrieved......");
-//			List<CompanyContactInformation> parsedCompanyContactInformationList = parseContactInformation(link, fullContactInformationSet);
-//			
-//			logger.info("Writing contact information to file......");
-//			File excelFile = FileHelper.constructFile(outputFilePath, outputFileName);
-//			ExcelHelper.writeCompanyContactInfoToExcelFile(excelFile, parsedCompanyContactInformationList);
-//			
-//		} catch (Exception e) {
-//			e.printStackTrace();
-//			throw new Exception(e.getMessage());
-//		}
-//	}
 	
-//	public void scrapeCompanyContactInfoToFileByInputFile(String outputFilePath, String outputFileName, String inputExcelFilePath) throws Exception {
-//		try {
-//			logger.info("Getting inputs from file......");
-//			File excelInputFile = new File(inputExcelFilePath);
-//			Map<String, String> linkCssSelectorMap = ExcelHelper.getScrapeContactInfoInputsFromFile(excelInputFile);
-//			
-//			List<CompanyContactInformation> companyContactInformationList = new ArrayList<CompanyContactInformation>();
-//			for (String websiteLink : linkCssSelectorMap.keySet()) {
-//				
-//				String cssSelector = linkCssSelectorMap.get(websiteLink);
-//				
-//				//logger.info("Connecting to " + websiteLink + "......");
-//				Document websiteDocument = JsoupHelper.getWebsiteDocument(websiteLink);
-//				
-//				//logger.info("Selecting elements with contact information......");
-//				Elements contactInfoElements = websiteDocument.select(cssSelector);
-//				
-//				//logger.info("Getting contact information......");
-//				Set<String> fullContactInformationSet = new HashSet<String>();
-//				for (Element element : contactInfoElements) {
-//					String contactInfo = element.text();
-//					fullContactInformationSet.add(contactInfo);
-//				}
-//				
-//				//logger.info("Parsing each company contact information retrieved......");
-//				List<CompanyContactInformation> parsedCompanyContactInformationList = parseContactInformation(websiteLink, fullContactInformationSet);
-//				companyContactInformationList.addAll(parsedCompanyContactInformationList);
-//			}
-//			
-//			logger.info("Number of retrieved contact information :: " + companyContactInformationList.size());
-//			
-//			File excelOutputFile = FileHelper.constructFile(outputFilePath, outputFileName);
-//			ExcelHelper.writeCompanyContactInfoToExcelFile(excelOutputFile, companyContactInformationList);
-//			
-//		} catch (Exception e) {
-//			e.printStackTrace();
-//			throw new Exception(e.getMessage());
-//		}
-//	}
+	public Set<String> scrapeLinksURLsByCssSelector(String linksListPageURL, String linksCssSelector, String linkAttributeForURL) throws Exception {
+		Set<String> linksURLs = null;
+		try {
+			
+			logger.info("Connecting to " + linksListPageURL  + "......");
+			WebDriver driver = new ChromeDriver();
+			driver.get(linksListPageURL);
+			Thread.sleep(5000);
+			
+			String html_content = driver.getPageSource();
+			
+			driver.quit();
+			
+			Document websiteDocument = Jsoup.parse(html_content);
+			
+			Elements linksElements = websiteDocument.select(linksCssSelector);
+			
+			linksURLs = JsoupHelper.getElementsAttributeValue(linkAttributeForURL, linksElements);
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new Exception(e.getMessage());
+		}
+		return linksURLs;
+	}
 	
-	public CompanyContactInformation parseContactInformation(String masterCompanyId, String masterCompanyName, String websiteLink, String fullCompanyContactInformation) throws Exception {
+	public CompanyContactInformation parseContactInformation(String masterCompanyId, String masterCompanyName, String websiteURL, String fullCompanyContactInformation) throws Exception {
 		CompanyContactInformation companyContactInformation = null;
 		try {
 			
-			CompanyContactInfoParser parser = CompanyContactInfoParserFactory.getParser(websiteLink);
+			CompanyContactInfoParser parser = CompanyContactInfoParserFactory.getParser(websiteURL);
 			if (parser != null) {
-				companyContactInformation = parser.parseCompanyContactInformation(masterCompanyId, masterCompanyName, websiteLink, fullCompanyContactInformation);
+				companyContactInformation = parser.parseCompanyContactInformation(masterCompanyId, masterCompanyName, websiteURL, fullCompanyContactInformation);
 			} else {
-				String errorMessage = "No existing parser yet for " + websiteLink + "!";
+				String errorMessage = "No existing parser yet for " + websiteURL + "!";
 				throw new Exception(errorMessage);
 			}
 			
@@ -230,15 +189,15 @@ public class ScrapeCompanyContactInfoService {
 		return companyContactInformation;
 	}
 	
-	public List<CompanyContactInformation> parseContactInformation(String masterCompanyId, String masterCompanyName, String websiteLink, Set<String> fullCompanyContactInformationSet) throws Exception {
+	public List<CompanyContactInformation> parseContactInformation(String masterCompanyId, String masterCompanyName, String websiteURL, Set<String> fullCompanyContactInformationSet) throws Exception {
 		List<CompanyContactInformation> companyContactInformationList = null;
 		try {
 			
-			CompanyContactInfoParser parser = CompanyContactInfoParserFactory.getParser(websiteLink);
+			CompanyContactInfoParser parser = CompanyContactInfoParserFactory.getParser(websiteURL);
 			if (parser != null) {
-				companyContactInformationList = parser.parseCompanyContactInformation(masterCompanyId, masterCompanyName, websiteLink, fullCompanyContactInformationSet);
+				companyContactInformationList = parser.parseCompanyContactInformation(masterCompanyId, masterCompanyName, websiteURL, fullCompanyContactInformationSet);
 			} else {
-				String errorMessage = "No existing parser yet for " + websiteLink + "!";
+				String errorMessage = "No existing parser yet for " + websiteURL + "!";
 				throw new Exception(errorMessage);
 			}
 			
@@ -251,5 +210,35 @@ public class ScrapeCompanyContactInfoService {
 	
 	public String getOutputFileName(String masterCompanyName) {
 		return masterCompanyName.replaceAll(Constants.REGEX_NON_ALPHANUMERIC_OR_SPACE, Constants.EMPTY_STRING).replace(Constants.SPACE, Constants.UNDERSCORE) + "_Locations.xlsx";
+	}
+	
+	public void writeCompanyContactInformationToFile(String masterCompanyName, String outputFilePath, List<CompanyContactInformation> companyContactInformationList) throws Exception {
+		try {
+			String outputFileName = getOutputFileName(masterCompanyName);
+			File excelFile = FileHelper.constructFile(outputFilePath, outputFileName);
+			ExcelHelper.writeCompanyContactInfoToExcelFile(excelFile, companyContactInformationList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			logger.error("An error encountered when writing the company contact information to file!");
+			throw new Exception(e.getMessage());
+		}
+	}
+	
+	public Set<String> prependWebsiteURLIfCurrentURLsHaveNoProtocol(String websiteURL, Set<String> currentURLs) throws Exception {		
+		Set<String> newCurrentURLs = null;
+		try {
+			newCurrentURLs = new HashSet<String>();
+			for (String currentURL : currentURLs) {
+				currentURL = currentURL.trim();
+				if (currentURL.startsWith(Constants.FORWARD_SLASH) || (!currentURL.startsWith(Constants.LITERAL_HTTP) && !currentURL.startsWith(Constants.LITERAL_WWW))) {
+					currentURL = websiteURL + StringHelper.addForwardSlashAtStart(currentURL);
+				}
+				newCurrentURLs.add(currentURL);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new Exception(e.getMessage());
+		}
+		return newCurrentURLs;
 	}
 }

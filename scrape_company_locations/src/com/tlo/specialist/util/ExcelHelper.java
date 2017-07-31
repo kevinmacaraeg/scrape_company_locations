@@ -33,11 +33,47 @@ import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 
 import com.tlo.specialist.domain.CompanyContactInformation;
+import com.tlo.specialist.domain.CompanyDetail;
 import com.tlo.specialist.domain.CompanyLocationsDetail;
+import com.tlo.specialist.domain.CompanySubsidiary;
 
 public class ExcelHelper {
 	
 	private static Logger logger = Logger.getLogger(ExcelHelper.class.getName());
+	
+	public static List<CompanyDetail> getCompanyDetailsListFromFile(String companyDetailsFilePath, String sheetName) throws Exception {
+		List<CompanyDetail> companyDetailsListFromFile = null;
+		try {
+			OPCPackage pkg = OPCPackage.open(companyDetailsFilePath);
+			ReadOnlySharedStringsTable strings = new ReadOnlySharedStringsTable(pkg);
+	        XSSFReader xssfReader = new XSSFReader(pkg);
+	        StylesTable styles = xssfReader.getStylesTable();
+	        SheetIterator sheetData = (SheetIterator) xssfReader.getSheetsData();
+	        boolean sheetNameExists = false;
+	        while (sheetData.hasNext()) {
+	            InputStream currentSheet = sheetData.next();
+	            String currentSheetName = sheetData.getSheetName();
+	            if (currentSheetName.equals(sheetName)) {
+	            	processSheet(styles, strings, new CompanyDetailCellValuesHandler(), currentSheet);
+	            	sheetNameExists = true;
+	            	break;
+	            }
+	        }
+	        
+	        if (sheetNameExists) {
+	        	companyDetailsListFromFile = CompanyDetailCellValuesHandler.companyDetailsList;
+	        	logger.info("# of Company Details retrieved :: " + companyDetailsListFromFile.size());
+	        } else {
+	        	logger.error("\"" + sheetName + "\" is not a sheet of the Company Details File!");
+	        	throw new Exception("\"" + sheetName + "\" is not a sheet of the Company Details File!");
+	        }
+	        
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new Exception(e.getMessage());
+		}
+		return companyDetailsListFromFile;
+	}
 	
 	public static List<CompanyLocationsDetail> getCompanyLocationsDetailsListFromFile(String companyLocationsDetailsFilePath, String sheetName) throws Exception {
 		List<CompanyLocationsDetail> companyLocationsDetailsListFromFile = null;
@@ -157,6 +193,67 @@ public class ExcelHelper {
 				newRow.createCell(4).setCellValue(contactInfo.getPhoneNumber());
 				newRow.createCell(5).setCellValue(contactInfo.getFaxNumber());
 				newRow.createCell(6).setCellValue(contactInfo.getEmail());
+			}
+			
+			fileOut = new FileOutputStream(excelFile);
+			contactInformationWorkbook.write(fileOut);
+			
+			logger.info("Records written to " + excelFile.getName());
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new Exception(e.getMessage());
+		} finally {
+			FileHelper.closeOutputStream(fileOut);
+			closeWorkbook(contactInformationWorkbook);
+		}
+	}
+	
+	public static void writeCompanySubsidiariesToExcelFile(File excelFile, List<CompanySubsidiary> companySubsidiariesList) throws Exception {
+		Workbook contactInformationWorkbook = null;
+		Sheet currentSheet = null;
+		FileOutputStream fileOut = null;
+		try {
+			contactInformationWorkbook = new XSSFWorkbook();
+			currentSheet = contactInformationWorkbook.createSheet();
+			
+			CellStyle style = contactInformationWorkbook.createCellStyle();
+			Font font = contactInformationWorkbook.createFont();
+			font.setBold(true);
+			style.setFont(font); 
+			
+			int numberOfExistingRows = 0;
+			
+			Row columnHeaders = currentSheet.createRow(numberOfExistingRows++);
+			
+			Cell masterCompanyIdHeader = columnHeaders.createCell(0);
+			masterCompanyIdHeader.setCellValue("masterCompanyId");
+			masterCompanyIdHeader.setCellStyle(style);
+			Cell masterCompanyNameHeader = columnHeaders.createCell(1);
+			masterCompanyNameHeader.setCellValue("masterCompanyName");
+			masterCompanyNameHeader.setCellStyle(style);
+			Cell subsidiaryUrlHeader = columnHeaders.createCell(2);
+			subsidiaryUrlHeader.setCellValue("subsidiaryUrl");
+			subsidiaryUrlHeader.setCellStyle(style);
+			Cell subsidiaryHeader = columnHeaders.createCell(3);
+			subsidiaryHeader.setCellValue("subsidiary");
+			subsidiaryHeader.setCellStyle(style);
+			Cell jurisdictionHeader = columnHeaders.createCell(4);
+			jurisdictionHeader.setCellValue("jurisdiction");
+			jurisdictionHeader.setCellStyle(style);
+			Cell subsidiaryAsOfHeader = columnHeaders.createCell(5);
+			subsidiaryAsOfHeader.setCellValue("subsidiaryAsOf");
+			subsidiaryAsOfHeader.setCellStyle(style);
+			
+			for (CompanySubsidiary subsidiary : companySubsidiariesList) {
+				Row newRow = currentSheet.createRow(numberOfExistingRows++);
+				
+				newRow.createCell(0).setCellValue(subsidiary.getMasterCompanyId());
+				newRow.createCell(1).setCellValue(subsidiary.getMasterCompanyName());
+				newRow.createCell(2).setCellValue(subsidiary.getSubsidiaryUrl());
+				newRow.createCell(3).setCellValue(subsidiary.getSubsidiary());
+				newRow.createCell(4).setCellValue(subsidiary.getJurisdiction());
+				newRow.createCell(5).setCellValue(subsidiary.getSubsidiaryAsOf());
 			}
 			
 			fileOut = new FileOutputStream(excelFile);

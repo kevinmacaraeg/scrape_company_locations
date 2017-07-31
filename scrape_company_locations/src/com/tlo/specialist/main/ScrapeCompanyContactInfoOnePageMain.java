@@ -12,7 +12,7 @@ public class ScrapeCompanyContactInfoOnePageMain {
 
 	private static Logger logger;
 	
-	private static String websiteLink;
+	private static String websiteURL;
 	
 	private static String cssSelector;
 	
@@ -25,7 +25,7 @@ public class ScrapeCompanyContactInfoOnePageMain {
 	public static void main(String[] args) {
 		if (args.length == 4) {
 			
-			websiteLink = args[0];
+			websiteURL = args[0];
 			cssSelector = args[1];
 			outputFilePath = args[2];
 			outputFileName = args[3];

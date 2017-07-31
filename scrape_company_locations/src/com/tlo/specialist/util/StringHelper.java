@@ -1,6 +1,9 @@
 package com.tlo.specialist.util;
 
 import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,7 +28,7 @@ public class StringHelper {
 	}
 	
 	public static boolean containsNonBreakingSpace(String currentString) {
-		return currentString.contains(Constants.NON_BREAKING_SPACE1) || currentString.contains(Constants.NON_BREAKING_SPACE2) || currentString.contains(Constants.NON_BREAKING_SPACE3);
+		return currentString.contains(Constants.NON_BREAKING_SPACE) || currentString.contains(Constants.NON_BREAKING_SPACE1) || currentString.contains(Constants.NON_BREAKING_SPACE2) || currentString.contains(Constants.NON_BREAKING_SPACE3);
 	}
 	
 	public static boolean containsPattern(String currentString, String regex) throws Exception {
@@ -68,7 +71,14 @@ public class StringHelper {
 		}
 	}
 	
-	public static String addSlashAtEnd(String currentString) {
+	public static String addForwardSlashAtStart(String currentString) {
+		if (!currentString.startsWith(Constants.FORWARD_SLASH)) {
+			currentString = new StringBuilder(Constants.FORWARD_SLASH).append(currentString).toString();
+		}
+		return currentString;
+	}
+	
+	public static String addForwardSlashAtEnd(String currentString) {
 		if (!currentString.endsWith(Constants.FORWARD_SLASH)) {
 			currentString = new StringBuilder(currentString).append(Constants.FORWARD_SLASH).toString();
 		}
@@ -88,7 +98,7 @@ public class StringHelper {
 	}
 	
 	public static String replaceEachNonBreakingSpaceWithSpace(String currentString) {
-		return currentString.replace(Constants.NON_BREAKING_SPACE1, Constants.SPACE).replace(Constants.NON_BREAKING_SPACE2, Constants.SPACE).replace(Constants.NON_BREAKING_SPACE3, Constants.SPACE);
+		return currentString.replace(Constants.NON_BREAKING_SPACE, Constants.SPACE).replace(Constants.NON_BREAKING_SPACE1, Constants.SPACE).replace(Constants.NON_BREAKING_SPACE2, Constants.SPACE).replace(Constants.NON_BREAKING_SPACE3, Constants.SPACE);
 	}
 	
 	public static String replaceNullValue(String currentString, String replaceValue) {
@@ -158,4 +168,25 @@ public class StringHelper {
 		}
 		return Constants.EMPTY_STRING;
 	}
+	
+	public static List<String> getISOCountriesList() throws Exception {
+		List<String> countryList = null;
+		try {
+			
+			countryList = new ArrayList<String>();
+			
+			Locale US = new Locale("en", "US");
+			
+			String[] locales = Locale.getISOCountries();
+			for (String countryCode : locales) {
+				countryList.add(new Locale(Constants.EMPTY_STRING, countryCode).getDisplayCountry(US));
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new Exception(e.getMessage());
+		}
+		return countryList;
+	}
+	
 }

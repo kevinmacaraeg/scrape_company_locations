@@ -1,4 +1,4 @@
-package com.tlo.specialist.service;
+package com.tlo.specialist.scraper.impl;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -15,13 +15,16 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 
 import com.tlo.specialist.domain.CompanyContactInformation;
+import com.tlo.specialist.scraper.CompanyContactInfoScraper;
+import com.tlo.specialist.service.ScrapeCompanyContactInfoService;
 import com.tlo.specialist.util.Constants;
 import com.tlo.specialist.util.ExcelHelper;
 import com.tlo.specialist.util.FileHelper;
+import com.tlo.specialist.util.JsoupHelper;
 
-public class ScrapePWCContactInfoService {
+public class PWCContactInfoScraper implements CompanyContactInfoScraper {
 
-	private static Logger logger = Logger.getLogger(ScrapePWCContactInfoService.class.getName());
+	private static Logger logger = Logger.getLogger(PWCContactInfoScraper.class.getName());
 	
 	private static final String PWC_FIRM_LOCATIONS_URL = "https://www.pwc.com/gx/en/about/office-locations.html";
 	
@@ -31,7 +34,7 @@ public class ScrapePWCContactInfoService {
 	
 	private static final String PWC_OFFICE_LOCATIONS_CSS_SELECTOR = "div.parsys.centerPar>div.parbase.html.section>div,div.parsys.centerPar>div.nobg.parbase.section.text>div";
 	
-	public void scrapePWCContactInfoToFile(String masterCompanyId, String masterCompanyName, String outputFilePath) throws Exception {
+	public void scrapeCompanyContactInformation(String masterCompanyId, String masterCompanyName, String outputFilePath) throws Exception {
 		try {
 			logger.info("Getting URLs for each country locations......");
 			WebDriver driver = new ChromeDriver();
@@ -46,24 +49,17 @@ public class ScrapePWCContactInfoService {
 			    
 			Elements countryLinks = websiteDocument.select(PWC_COUNTRY_LINKS_CSS_SELECTOR);
 			
-			List<String> locationLinks = new ArrayList<String>();
-			for (Element countryLink : countryLinks) {
-				
-				String link = countryLink.attr(Constants.HTML_ELEMENT_ATTR_HREF);
-				if (!link.startsWith(PWC_WEBSITE_URL)) {
-					link = PWC_WEBSITE_URL + link;
-				}
-				locationLinks.add(link);
-				
-			}
-			
 			ScrapeCompanyContactInfoService service = new ScrapeCompanyContactInfoService();
 			
+			Set<String> locationURLs = JsoupHelper.getElementsHrefAttributes(countryLinks);
+			locationURLs = service.prependWebsiteURLIfCurrentURLsHaveNoProtocol(PWC_WEBSITE_URL, locationURLs);
+			
 			List<CompanyContactInformation> companyContactInformationList = new ArrayList<CompanyContactInformation>();
-			for (String locationLink : locationLinks) {
-				logger.info("Connecting to " + locationLink + "......");
+			for (String locationURL : locationURLs) {
+				
+				logger.info("Connecting to " + locationURL + "......");
 				driver = new ChromeDriver();
-				driver.get(locationLink);
+				driver.get(locationURL);
 				Thread.sleep(3000);
 				
 				html_content = driver.getPageSource();
@@ -108,13 +104,14 @@ public class ScrapePWCContactInfoService {
 						}
 					}
 					
-					List<CompanyContactInformation> parsedContactInformationList = service.parseContactInformation(masterCompanyId, masterCompanyName, locationLink, fullCompanyContactInformationSet);
+					List<CompanyContactInformation> parsedContactInformationList = service.parseContactInformation(masterCompanyId, masterCompanyName, locationURL, fullCompanyContactInformationSet);
 					if (parsedContactInformationList != null) {
 						companyContactInformationList.addAll(parsedContactInformationList);
 					}
 				} else {
-					logger.info("No company contact information scraped from " + locationLink);
+					logger.info("No company contact information scraped from " + locationURL);
 				}
+				
 			}
 			
 			logger.info("Writing contact information to file......");
